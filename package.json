@@ -11,6 +11,7 @@
     "client": "npm run dev --prefix client",
     "electron": "wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .",
     "dist": "npm run build --prefix client && electron-builder --win",
+    "dist:win": "npm run build --prefix client && electron-builder --win",
     "dist:linux": "npm run build --prefix client && electron-builder --linux",
     "dist:all": "npm run build --prefix client && electron-builder --win --linux"
   },
