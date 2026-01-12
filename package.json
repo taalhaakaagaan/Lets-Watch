@@ -1,12 +1,13 @@
 {
   "name": "letswatch",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "electron/main.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/taalhaakaagaan/Lets-Watch.git"
   },
   "scripts": {
+    "start": "concurrently \"npm run client\" \"npm run electron\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "client": "npm run dev --prefix client",
     "electron": "wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .",
@@ -26,6 +27,9 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      "github"
+    ],
     "win": {
       "target": "nsis"
     },

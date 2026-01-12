@@ -30,7 +30,6 @@ jobs:
           npm install
           cd client
           npm install
-          npm run build
 
       - name: Build Electron App
         env:

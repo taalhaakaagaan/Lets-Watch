@@ -61,8 +61,10 @@ const RoomContent = () => {
 
     const mode = searchParams.get('mode') || 'viewer';
     const isHost = mode === 'host';
+    const maxUsers = isHost ? (location.state?.maxUsers || 5) : null;
 
     const [peerId, setPeerId] = useState(null);
+    const [connectedUsers, setConnectedUsers] = useState([]);
     const [notifications, setNotifications] = useState([]);
     const [stream, setStream] = useState(null); // Local (Host) or Remote (Viewer) Stream
     const [messages, setMessages] = useState([]);
@@ -92,7 +94,13 @@ const RoomContent = () => {
         if (peerRef.current) peerRef.current.destroy();
 
         const peer = new Peer(isHost ? roomId : undefined, {
-            debug: 2
+            debug: 2,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
         });
 
         peerRef.current = peer;
@@ -128,8 +136,19 @@ const RoomContent = () => {
             }
         });
 
+        // Handle fullscreen exit
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                // Exited fullscreen
+            }
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
         return () => {
             if (peerRef.current) peerRef.current.destroy();
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
         }
     }, [roomId, isHost]);
 
@@ -143,14 +162,24 @@ const RoomContent = () => {
 
     const handleDataConnection = (conn) => {
         conn.on('open', () => {
+            // Capacity Check (Host Only)
+            if (isHost && maxUsers && Object.keys(connectionsRef.current).length >= maxUsers) {
+                conn.send({ type: 'error', payload: 'Room is Full' });
+                setTimeout(() => conn.close(), 500);
+                return;
+            }
+
             console.log(`Connected to: ${conn.peer}`);
             connectionsRef.current[conn.peer] = conn;
 
-            // If Host, broadcast to others that someone joined? optional.
-            // If Host, call the user with stream if we have it?
+            // Track User (Host)
+            if (isHost) {
+                const username = conn.metadata?.username || `User-${conn.peer.substr(0, 4)}`;
+                setConnectedUsers(prev => [...prev, { peerId: conn.peer, username }]);
+            }
+
+            // If Host, call the user with stream if we have it
             if (isHost && videoRef.current && videoRef.current.captureStream) {
-                // Important: Wait a bit or ensure stream is ready?
-                // Actually, if file is loaded, we can call.
                 callPeer(conn.peer);
             }
         });
@@ -162,6 +191,7 @@ const RoomContent = () => {
         conn.on('close', () => {
             console.log("Connection closed:", conn.peer);
             delete connectionsRef.current[conn.peer];
+            if (isHost) setConnectedUsers(prev => prev.filter(u => u.peerId !== conn.peer));
             addNotification("A user disconnected");
         });
     };
@@ -179,6 +209,22 @@ const RoomContent = () => {
     };
 
     const handleIncomingData = (data, senderId) => {
+        if (data.type === 'error') {
+            alert(data.payload);
+            window.location.href = '#/dashboard';
+            return;
+        }
+        if (data.type === 'kick') {
+            alert("You have been kicked by the host.");
+            window.location.href = '#/dashboard';
+            return;
+        }
+
+        if (data.type === 'start-countdown') {
+            // Viewer receives countdown start
+            startCountdown(data.payload.seconds);
+        }
+
         // data = { type: 'chat' | 'sync', payload: ... }
         if (data.type === 'chat') {
             setMessages(prev => [...prev, data.payload]);
@@ -190,9 +236,6 @@ const RoomContent = () => {
         else if (data.type === 'sync') {
             // Sync event
             handleSync(data.payload);
-            // If Host received sync (unlikely usually host drives), broadcast? 
-            // Normally only Host sends sync. If Viewer sends sync (e.g. valid request), Host broadcasts.
-            // Ensure loop prevention if needed.
         }
     };
 
@@ -216,6 +259,25 @@ const RoomContent = () => {
 
     // Chat Logic
     const handleSendMessage = (text) => {
+        // Command Handling
+        if (text.startsWith('/kick ') && isHost) {
+            const targetName = text.split(' ')[1];
+            const targetUser = connectedUsers.find(u => u.username === targetName);
+            if (targetUser) {
+                const conn = connectionsRef.current[targetUser.peerId];
+                if (conn) {
+                    conn.send({ type: 'kick' });
+                    setTimeout(() => conn.close(), 500);
+                    addNotification(`Kicked user: ${targetName}`);
+                    // Local message
+                    setMessages(prev => [...prev, { user: 'System', text: `Kicked ${targetName}`, time: 'Now' }]);
+                }
+            } else {
+                addNotification(`User ${targetName} not found.`);
+            }
+            return;
+        }
+
         const msgPayload = {
             user: username,
             text,
@@ -230,6 +292,19 @@ const RoomContent = () => {
             sendToHost({ type: 'chat', payload: msgPayload });
         }
     };
+
+    const startCountdown = (seconds) => {
+        setCountdown(seconds);
+        let count = seconds;
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) setCountdown(count);
+            else {
+                clearInterval(interval);
+                setCountdown(null);
+            }
+        }, 1000);
+    }
 
     // Sync Logic
     const handleSync = ({ event, currentTime }) => {
@@ -264,25 +339,27 @@ const RoomContent = () => {
 
     // Start Movie Logic (Host only)
     const handleStartMovie = () => {
-        if (!containerRef.current) return;
-        if (containerRef.current.requestFullscreen) containerRef.current.requestFullscreen().catch(e => console.error(e));
+        const COUNTDOWN_SEC = 5;
+        // Broadcast BEFORE local start
+        broadcastData({ type: 'start-countdown', payload: { seconds: COUNTDOWN_SEC } });
 
-        setShowStartButton(false);
-        setCountdown(5);
-        let count = 5;
-        const interval = setInterval(() => {
-            count--;
-            if (count > 0) setCountdown(count);
-            else {
-                clearInterval(interval);
-                setCountdown(null);
-                if (videoRef.current) {
-                    videoRef.current.muted = true;
-                    videoRef.current.play();
-                    emitSync('play');
-                }
+        startCountdown(COUNTDOWN_SEC); // Local UI
+
+        setTimeout(() => {
+            if (!containerRef.current) return;
+            // Go Fullscreen first?
+            if (containerRef.current.requestFullscreen) {
+                containerRef.current.requestFullscreen().catch(e => console.error(e));
             }
-        }, 1000);
+
+            setShowStartButton(false);
+
+            if (videoRef.current) {
+                videoRef.current.muted = true;
+                videoRef.current.play().catch(e => console.error(e));
+                emitSync('play');
+            }
+        }, COUNTDOWN_SEC * 1000);
     };
 
     // File change for local video (Host)
@@ -303,6 +380,7 @@ const RoomContent = () => {
                 <div className="room-header">
                     <div className="room-info">
                         <h2>{location.state?.roomName || `Room: ${roomId}`}</h2>
+                        {isHost && <span style={{ fontSize: '0.8rem', color: '#999', marginLeft: '10px' }}>({connectedUsers.length + 1}/{maxUsers})</span>}
                         <div className="room-id-badge" onClick={() => {
                             navigator.clipboard.writeText(roomId);
                             addNotification("Room ID copied!");

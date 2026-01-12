@@ -19,6 +19,7 @@ const CreateRoom = () => {
     const [breakDuration, setBreakDuration] = useState('5'); // minutes
     const [breakIntervals, setBreakIntervals] = useState('30'); // minutes
     const [responsibilityConfirmed, setResponsibilityConfirmed] = useState(false);
+    const [maxUsers, setMaxUsers] = useState(5);
 
     const handleBack = () => {
         navigate('/dashboard');
@@ -99,9 +100,20 @@ const CreateRoom = () => {
             const sanitizedName = roomName.replace(/[^a-zA-Z0-9]/g, '-');
             const newRoomId = `${sanitizedName}-${randomSuffix}`;
 
+            // Save to History
+            const history = JSON.parse(localStorage.getItem('letswatch_history') || '[]');
+            history.unshift({ roomId: newRoomId, roomName: roomName, timestamp: new Date().toISOString() });
+            if (history.length > 10) history.pop();
+            localStorage.setItem('letswatch_history', JSON.stringify(history));
+
+            // Stats Update
+            const stats = JSON.parse(localStorage.getItem('letswatch_stats') || '{"roomsJoined": 0, "hoursWatched": 0}');
+            stats.roomsJoined += 1;
+            localStorage.setItem('letswatch_stats', JSON.stringify(stats));
+
             // Navigate directly to room as Host
             navigate(`/room/${newRoomId}?mode=host`, {
-                state: { filePath: moviePath, roomName }
+                state: { filePath: moviePath, roomName, maxUsers }
             });
 
         } catch (err) {
@@ -188,6 +200,20 @@ const CreateRoom = () => {
                                 min="1"
                             />
                         </div>
+                    </div>
+
+                    {/* Room Capacity */}
+                    <div className="form-group">
+                        <label>Max Users <span className="required">*</span></label>
+                        <input
+                            type="number"
+                            placeholder="Max Users (Default: 5)"
+                            value={maxUsers}
+                            onChange={(e) => setMaxUsers(e.target.value)}
+                            required
+                            min="2"
+                            max="50"
+                        />
                     </div>
 
                     {/* Privacy Settings */}
