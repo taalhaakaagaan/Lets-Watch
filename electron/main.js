@@ -1,7 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { startServer, createRoom } = require('./server');
-const { getLocalIp, ipToId, idToIp } = require('./ipCodec');
 
 let mainWindow;
 
@@ -21,13 +19,14 @@ function createWindow() {
 
     mainWindow.setMenu(null);
 
+    // In production, load the built index.html
+    // In dev, load localhost
+    // Checking environment variable or standard pattern
     if (process.env.ELECTRON_START_URL) {
         mainWindow.loadURL(process.env.ELECTRON_START_URL);
     } else {
         mainWindow.loadFile(path.join(__dirname, '../client/dist/index.html'));
     }
-    // Open DevTools for debugging
-    // mainWindow.webContents.openDevTools();
 
     mainWindow.on('closed', function () {
         mainWindow = null;
@@ -46,27 +45,6 @@ app.on('activate', function () {
     if (mainWindow === null) {
         createWindow();
     }
-});
-
-// IPC: Start Server
-ipcMain.handle('start-server', async (event, port, config) => {
-    try {
-        const actualPort = await startServer(port || 3001);
-        const ip = getLocalIp();
-        const roomId = ipToId(ip);
-
-        // Register the room configuration
-        createRoom(roomId, config);
-
-        return { success: true, port: actualPort, roomId, ip };
-    } catch (e) {
-        return { success: false, error: e.message };
-    }
-});
-
-// IPC: Resolve Room ID
-ipcMain.handle('resolve-id', (event, id) => {
-    return idToIp(id);
 });
 
 // IPC: Select Video File

@@ -1,18 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Chat.css';
 
-const Chat = ({ socket, username, roomId }) => {
-    const [messages, setMessages] = useState([]);
+const Chat = ({ messages, onSendMessage, username }) => {
     const [msg, setMsg] = useState("");
     const messagesEndRef = useRef(null);
-
-    useEffect(() => {
-        if (!socket) return;
-        socket.on('chat-message', (message) => {
-            setMessages(prev => [...prev, message]);
-        });
-        return () => socket.off('chat-message');
-    }, [socket]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -20,13 +11,9 @@ const Chat = ({ socket, username, roomId }) => {
 
     const send = (e) => {
         e.preventDefault();
-        if (!msg.trim() || !socket) return;
+        if (!msg.trim()) return;
 
-        // Optimistic UI
-        const newMessage = { user: username, text: msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-        // setMessages(prev => [...prev, newMessage]); // Socket will echo back usually, depends on server logic. Let's assume server broadcasts to ALL including sender.
-
-        socket.emit('send-chat', { roomId, message: newMessage });
+        onSendMessage(msg);
         setMsg("");
     };
 

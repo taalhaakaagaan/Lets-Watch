@@ -16,21 +16,12 @@ const Dashboard = () => {
         e.preventDefault();
         if (!joinIp) return;
 
-        // Resolve ID to IP
-        let targetIp = joinIp;
-        if (window.electronAPI) {
-            const resolved = await window.electronAPI.resolveId(joinIp);
-            if (resolved) {
-                targetIp = resolved;
-            } else {
-                setError("Invalid Room ID");
-                return;
-            }
-        }
-
         // Navigate with password
         const passwordParam = joinPassword ? `&password=${encodeURIComponent(joinPassword)}` : '';
-        navigate(`/room/${joinIp}?mode=viewer&ip=${targetIp}${passwordParam}`);
+        // Direct navigation to Room ID (Peer ID)
+        navigate(`/room/${joinIp}?mode=viewer${passwordParam}`);
+
+
     };
 
     return (

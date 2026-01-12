@@ -94,29 +94,16 @@ const CreateRoom = () => {
         }
 
         try {
-            if (window.electronAPI) {
-                // Pass config to startServer
-                const result = await window.electronAPI.startServer(3001, config);
-                if (result.success) {
-                    // Pass filePath in state navigation so Room.jsx can pick it up
-                    navigate(`/room/${result.roomId}?mode=host&port=${result.port}`, {
-                        state: { filePath: moviePath }
-                    });
-                } else {
-                    if (result.error === 'Server already running') {
-                        // In a real app we'd update the config of the running server
-                        navigate(`/room/ACTIVE_SESSION?mode=host&port=3001`, {
-                            state: { filePath: moviePath }
-                        });
-                    } else {
-                        setError('Failed to start room: ' + result.error);
-                    }
-                }
-            } else {
-                console.warn("Electron API not found");
-                // Browser fallback
-                navigate('/room/browser-mock?mode=host');
-            }
+            // Generate a random ID for the room (PeerJS ID)
+            const randomSuffix = Math.random().toString(36).substr(2, 6);
+            const sanitizedName = roomName.replace(/[^a-zA-Z0-9]/g, '-');
+            const newRoomId = `${sanitizedName}-${randomSuffix}`;
+
+            // Navigate directly to room as Host
+            navigate(`/room/${newRoomId}?mode=host`, {
+                state: { filePath: moviePath, roomName }
+            });
+
         } catch (err) {
             setError('System error: ' + err.message);
         } finally {

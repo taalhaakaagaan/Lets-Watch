@@ -1,6 +1,6 @@
 {
   "name": "letswatch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "electron/main.js",
   "repository": {
     "type": "git",
@@ -48,9 +48,5 @@
     "electron-builder": "^26.4.0",
     "wait-on": "^9.0.3"
   },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "socket.io": "^4.8.3"
-  }
+  "dependencies": {}
 }
