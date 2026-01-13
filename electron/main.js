@@ -57,3 +57,75 @@ ipcMain.handle('select-video-file', async () => {
     });
     return result.canceled ? null : result.filePaths[0];
 });
+
+// --- Email Verification System ---
+const nodemailer = require('nodemailer');
+require('dotenv').config(); // Ensure you installed dotenv if not already present, or use process.env directly if managed elsewhere. 
+// For this environment, we'll try to load it or expect vars to be present. 
+// Since dotenv isn't in package.json, we'll assume the user might need to install it or we skip it if they set env vars globally.
+// Let's add dotenv usage for safety if they create the .env file.
+try { require('dotenv').config(); } catch (e) { }
+
+// Temporary storage for verification codes
+const verificationCodes = new Map(); // email -> { code, expires }
+
+// Transporter (Configure this in .env)
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: process.env.SMTP_PORT || 587,
+    secure: false, // true for 465, false for other ports
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
+});
+
+ipcMain.handle('send-verification-email', async (event, email) => {
+    try {
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+        verificationCodes.set(email, { code, expires });
+
+        // Clean up code after expiration
+        setTimeout(() => verificationCodes.delete(email), 5 * 60 * 1000);
+
+        const mailOptions = {
+            from: `"Let's Watch" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: 'Your Verification Code - Let\'s Watch',
+            text: `Your verification code is: ${code}\n\nIt expires in 5 minutes.`,
+            html: `<div style="font-family: sans-serif; padding: 20px; background: #f4f4f4;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+                        <h2 style="color: #333;">Welcome to Let's Watch! 🍿</h2>
+                        <p style="font-size: 16px;">Here is your verification code to get started:</p>
+                        <h1 style="color: #FF8E53; letter-spacing: 5px;">${code}</h1>
+                        <p style="color: #666; font-size: 12px;">This code expires in 5 minutes.</p>
+                    </div>
+                   </div>`
+        };
+
+        await transporter.sendMail(mailOptions);
+        return { success: true };
+    } catch (error) {
+        console.error('Email Error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('verify-email-code', async (event, { email, code }) => {
+    const record = verificationCodes.get(email);
+    if (!record) return { success: false, error: 'Code expired or not found.' };
+
+    if (Date.now() > record.expires) {
+        verificationCodes.delete(email);
+        return { success: false, error: 'Code expired.' };
+    }
+
+    if (record.code === code) {
+        verificationCodes.delete(email); // One-time use
+        return { success: true };
+    } else {
+        return { success: false, error: 'Invalid code.' };
+    }
+});

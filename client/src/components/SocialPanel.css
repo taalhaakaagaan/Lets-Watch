@@ -1,0 +1,192 @@
+.social-panel {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(15px);
+    border-radius: 20px 0 0 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    transition: width 0.3s ease, min-height 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.social-panel.collapsed {
+    width: 60px;
+    height: 60px;
+    border-radius: 30px 0 0 30px;
+    cursor: pointer;
+    justify-content: center;
+}
+
+.social-panel.expanded {
+    width: 300px;
+    height: 60vh;
+}
+
+.social-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    cursor: pointer;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.social-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.social-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.friends-list-mini {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.friend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.friend-row:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.friend-avatar-mini {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    position: relative;
+    color: white;
+}
+
+.status-dot-mini {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    border: 2px solid #1a1a1a;
+}
+
+.status-dot-mini.online {
+    background: #4cd137;
+}
+
+.status-dot-mini.offline {
+    background: #7f8fa6;
+}
+
+.status-dot-mini.checking {
+    background: #fbc531;
+}
+
+.status-dot-mini.unknown {
+    background: #718093;
+}
+
+.friend-info-mini {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.friend-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.friend-status {
+    font-size: 0.7rem;
+    color: #bbb;
+}
+
+.chat-btn-mini {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.add-friend-mini {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.add-friend-mini input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    border-radius: 5px;
+    color: white;
+    padding: 5px;
+    font-size: 0.8rem;
+}
+
+.add-friend-mini button {
+    background: #ff6b6b;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    width: 30px;
+    cursor: pointer;
+}
+
+.refresh-mini button {
+    width: 100%;
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    border-radius: 5px;
+    margin-top: 5px;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.refresh-mini button:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+}

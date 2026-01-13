@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Peer from 'peerjs';
 import FriendChat from '../components/FriendChat'; // Import Chat
+import { useFriends } from '../hooks/useFriends';
 import './Profile.css';
 
 const Profile = () => {
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
     const [activeTab, setActiveTab] = useState('history');
 
     // Identity
@@ -21,16 +24,12 @@ const Profile = () => {
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ roomsJoined: 0, hoursWatched: 0 });
 
-    // Friends State
-    const [friends, setFriends] = useState([]);
-    const [newFriendInput, setNewFriendInput] = useState(''); // Accepts username@id
-    const [pingStatus, setPingStatus] = useState({});
+    // Friends Logic from Hook
+    const { friends, addFriend, removeFriend, clearChatHistory, pingStatus, checkStatuses } = useFriends();
+    const [newFriendInput, setNewFriendInput] = useState('');
 
     // Chat State
-    const [chatFriend, setChatFriend] = useState(null); // { id, name } to open chat
-
-    // Peer for Pinging
-    const peerRef = useRef(null);
+    const [chatFriend, setChatFriend] = useState(null);
 
     useEffect(() => {
         // Load Data
@@ -39,19 +38,8 @@ const Profile = () => {
 
         const savedStats = JSON.parse(localStorage.getItem('letswatch_stats') || '{"roomsJoined": 0, "hoursWatched": 0}');
         setStats(savedStats);
-
-        const savedFriends = JSON.parse(localStorage.getItem('letswatch_friends') || '[]');
-        setFriends(savedFriends);
-
-        // Init Peer for Pinging
-        // Note: This peer is SEPARATE from Dashboard peer.
-        const peer = new Peer(undefined, { debug: 1 });
-        peerRef.current = peer;
-
-        return () => {
-            if (peerRef.current) peerRef.current.destroy();
-        };
     }, []);
+
 
     const handleAvatarUpload = (e) => {
         const file = e.target.files[0];
@@ -81,64 +69,19 @@ const Profile = () => {
         localStorage.removeItem('letswatch_avatar');
     };
 
-    const handleAddFriend = (e) => {
-        e.preventDefault();
+    // Handlers
+    const onAddFriendSubmit = () => {
         if (!newFriendInput.trim()) return;
-
         // Parse: name@id or just id
         let idToAdd = newFriendInput.trim();
         let nameToAdd = 'Friend';
-
         if (idToAdd.includes('@')) {
             const parts = idToAdd.split('@');
             nameToAdd = parts[0];
             idToAdd = parts[1];
         }
-
-        const newFriends = [...friends, { id: idToAdd, name: nameToAdd }];
-        setFriends(newFriends);
-        localStorage.setItem('letswatch_friends', JSON.stringify(newFriends));
+        addFriend(idToAdd, nameToAdd);
         setNewFriendInput('');
-    };
-
-    const handleRemoveFriend = (id) => {
-        const newFriends = friends.filter(f => f.id !== id);
-        setFriends(newFriends);
-        localStorage.setItem('letswatch_friends', JSON.stringify(newFriends));
-        const newStatus = { ...pingStatus };
-        delete newStatus[id];
-        setPingStatus(newStatus);
-    };
-
-    const handleCheckStatus = async () => {
-        if (!peerRef.current || peerRef.current.destroyed) {
-            peerRef.current = new Peer(undefined, { debug: 1 });
-            await new Promise(resolve => peerRef.current.on('open', resolve));
-        }
-
-        const newStatus = {};
-        friends.forEach(f => newStatus[f.id] = 'checking');
-        setPingStatus(prev => ({ ...prev, ...newStatus }));
-
-        friends.forEach(friend => {
-            const conn = peerRef.current.connect(friend.id, { reliable: true });
-
-            const timer = setTimeout(() => {
-                setPingStatus(prev => ({ ...prev, [friend.id]: 'offline' }));
-                conn.close();
-            }, 5000);
-
-            conn.on('open', () => {
-                clearTimeout(timer);
-                setPingStatus(prev => ({ ...prev, [friend.id]: 'online' }));
-                conn.close();
-            });
-
-            conn.on('error', () => {
-                clearTimeout(timer);
-                setPingStatus(prev => ({ ...prev, [friend.id]: 'offline' }));
-            });
-        });
     };
 
     const formatTime = (isoString) => {
@@ -147,7 +90,7 @@ const Profile = () => {
 
     return (
         <div className="profile-container fade-in">
-            <button className="back-button" onClick={() => navigate('/dashboard')}>← Dashboard</button>
+            <button className="back-button" onClick={() => navigate('/dashboard')}>{t('profile.back_dashboard')}</button>
 
             <div className="profile-header">
                 {/* Avatar Section */}
@@ -160,7 +103,7 @@ const Profile = () => {
                     </div>
                     <div className="avatar-controls">
                         <label className="upload-btn">
-                            📷 Change
+                            {t('profile.change_avatar')}
                             <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
                         </label>
                         {avatar && <button className="remove-btn" onClick={handleRemoveAvatar}>✕</button>}
@@ -179,15 +122,16 @@ const Profile = () => {
                 </div>
 
                 <div className="stats-row">
-                    <div className="stat-pill">🎬 {stats.roomsJoined} Rooms</div>
-                    <div className="stat-pill">⏱️ {Math.round(stats.hoursWatched)} Hrs Watched</div>
+                    <div className="stat-pill">🎬 {stats.roomsJoined} {t('profile.rooms_joined')}</div>
+                    <div className="stat-pill">⏱️ {Math.round(stats.hoursWatched)} {t('profile.hours_watched')}</div>
                 </div>
             </div>
 
             <div className="tabs">
-                <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>History</button>
-                <button className={`tab ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => setActiveTab('friends')}>Friends</button>
-                <button className={`tab ${activeTab === 'contact' ? 'active' : ''}`} onClick={() => setActiveTab('contact')}>Contact Us</button>
+                <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>{t('profile.tab_history')}</button>
+                <button className={`tab ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => setActiveTab('friends')}>{t('profile.tab_friends')}</button>
+                <button className={`tab ${activeTab === 'contact' ? 'active' : ''}`} onClick={() => setActiveTab('contact')}>{t('profile.tab_contact')}</button>
+                <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️</button>
             </div>
 
             <div className="tab-content">
@@ -215,16 +159,16 @@ const Profile = () => {
                                 value={newFriendInput}
                                 onChange={e => setNewFriendInput(e.target.value)}
                             />
-                            <button onClick={handleAddFriend}>Add Friend</button>
+                            <button onClick={onAddFriendSubmit}>{t('profile.add_friend_btn')}</button>
                         </div>
 
                         <div className="friends-controls">
-                            <h3>Saved Contacts ({friends.length})</h3>
-                            <button className="refresh-btn" onClick={handleCheckStatus}>🔄 Check Status</button>
+                            <h3>{t('profile.saved_contacts')} ({friends.length})</h3>
+                            <button className="refresh-btn" onClick={checkStatuses}>{t('profile.check_status')}</button>
                         </div>
 
                         <div className="friends-list">
-                            {friends.length === 0 ? <p className="empty-msg">No friends added.</p> : (
+                            {friends.length === 0 ? <p className="empty-msg">{t('profile.friends_empty')}</p> : (
                                 friends.map(friend => (
                                     <div key={friend.id} className="friend-item">
                                         <div className="friend-info">
@@ -236,8 +180,8 @@ const Profile = () => {
                                         </div>
                                         <div className="friend-actions">
                                             <button className="msg-btn" onClick={() => setChatFriend(friend)}>💬</button>
-                                            <button className="join-friend-btn" onClick={() => navigate(`/room/${friend.id}?mode=viewer`)}>Join</button>
-                                            <button className="delete-btn" onClick={() => handleRemoveFriend(friend.id)}>🗑️</button>
+                                            <button className="join-friend-btn" onClick={() => navigate(`/room/${friend.id}?mode=viewer`)}>{t('profile.join')}</button>
+                                            <button className="delete-btn" onClick={() => removeFriend(friend.id)}>🗑️</button>
                                         </div>
                                     </div>
                                 ))
@@ -257,17 +201,49 @@ const Profile = () => {
                         </form>
                     </div>
                 )}
+                {activeTab === 'settings' && (
+                    <div className="contact-section">
+                        <h2>{t('profile.settings_language')}</h2>
+                        <div className="language-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '20px' }}>
+                            <button
+                                className={`lang-btn ${i18n.language === 'en' ? 'active-lang' : ''}`}
+                                onClick={() => i18n.changeLanguage('en')}
+                            >
+                                🇬🇧 English
+                            </button>
+                            <button
+                                className={`lang-btn ${i18n.language === 'tr' ? 'active-lang' : ''}`}
+                                onClick={() => i18n.changeLanguage('tr')}
+                            >
+                                🇹🇷 Türkçe
+                            </button>
+                            <button
+                                className={`lang-btn ${i18n.language === 'de' ? 'active-lang' : ''}`}
+                                onClick={() => i18n.changeLanguage('de')}
+                            >
+                                🇩🇪 Deutsch
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Friend Chat Modal */}
-            {chatFriend && (
-                <FriendChat
-                    friend={chatFriend}
-                    myId={myStableId}
-                    onClose={() => setChatFriend(null)}
-                />
-            )}
-        </div>
+            {
+                chatFriend && (
+                    <FriendChat
+                        friend={chatFriend}
+                        myId={myStableId}
+                        onClose={() => setChatFriend(null)}
+                        onRemove={(id) => {
+                            removeFriend(id);
+                            setChatFriend(null);
+                        }}
+                        onClearHistory={clearChatHistory}
+                    />
+                )
+            }
+        </div >
     );
 };
 

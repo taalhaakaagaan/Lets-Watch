@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import './Onboarding.css';
+import { profanityFilter } from '../utils/profanity';
 
 const GENRES = ["Action", "Sci-Fi", "Drama", "Comedy", "Horror", "Documentary", "Anime", "Romance", "Thriller"];
 const SOURCES = ["Friend Recommendation", "Social Media", "Discovery Store", "Just Browsing"];
@@ -8,6 +10,7 @@ const BLACKLIST = ["Gore", "Erotic", "Political", "Religious", "Jump Scares"];
 
 const Onboarding = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [step, setStep] = useState(1);
 
     // Form Data
@@ -21,6 +24,56 @@ const Onboarding = () => {
         source: '',
         blacklist: []
     });
+
+    const [verificationState, setVerificationState] = useState({
+        isSent: false,
+        isVerified: false,
+        code: '',
+        timer: 0,
+        loading: false
+    });
+
+    useEffect(() => {
+        let interval;
+        if (verificationState.timer > 0) {
+            interval = setInterval(() => {
+                setVerificationState(prev => ({ ...prev, timer: prev.timer - 1 }));
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [verificationState.timer]);
+
+    const handleSendEmail = async () => {
+        if (!formData.email.includes('@')) {
+            alert("Please enter a valid email.");
+            return;
+        }
+        setVerificationState(prev => ({ ...prev, loading: true }));
+        try {
+            await window.electronAPI.sendVerificationEmail(formData.email);
+            setVerificationState(prev => ({ ...prev, isSent: true, timer: 30, loading: false }));
+        } catch (error) {
+            console.error(error);
+            alert("Failed to send email.");
+            setVerificationState(prev => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleVerifyCode = async () => {
+        setVerificationState(prev => ({ ...prev, loading: true }));
+        try {
+            const res = await window.electronAPI.verifyEmailCode({ email: formData.email, code: verificationState.code });
+            if (res.success) {
+                setVerificationState(prev => ({ ...prev, isVerified: true, loading: false }));
+            } else {
+                alert(res.error || "Invalid Code");
+                setVerificationState(prev => ({ ...prev, loading: false }));
+            }
+        } catch (error) {
+            console.error(error);
+            setVerificationState(prev => ({ ...prev, loading: false }));
+        }
+    };
 
     const updateData = (key, value) => {
         setFormData(prev => ({ ...prev, [key]: value }));
@@ -39,7 +92,13 @@ const Onboarding = () => {
 
     const isStepValid = () => {
         switch (step) {
-            case 1: return formData.username.trim().length > 0; // Username required
+            case 1:
+                const isUsernameValid = formData.username.trim().length > 0 && !profanityFilter.isProfane(formData.username);
+                const isEmailVerified = verificationState.isVerified;
+                if (formData.username.trim().length > 0 && profanityFilter.isProfane(formData.username)) {
+                    // Ideally show error message in UI, but button disable is basic check
+                }
+                return isUsernameValid && isEmailVerified;
             case 2: return formData.age && parseInt(formData.age) > 0; // Age required
             case 3: return true; // API Key Optional
             case 4: return formData.genres.length > 0; // At least 1 genre
@@ -91,14 +150,14 @@ const Onboarding = () => {
                             onClick={prevStep}
                             style={{ visibility: step === 1 ? 'hidden' : 'visible' }}
                         >
-                            Back
+                            {t('onboarding.back')}
                         </button>
                         <button
                             className={`btn-primary ${!isStepValid() ? 'disabled' : ''}`}
                             onClick={nextStep}
                             disabled={!isStepValid()}
                         >
-                            {step === 8 ? "Start Watching" : "Next"}
+                            {step === 8 ? t('onboarding.start_watching') : t('onboarding.next')}
                         </button>
                     </div>
                 </div>
@@ -111,37 +170,81 @@ const Onboarding = () => {
             case 1:
                 return (
                     <>
-                        <h1 className="onboarding-title">Hello, Stranger! 👋</h1>
-                        <p className="onboarding-desc">Let's get to know each other. What should we call you?</p>
+                        <h1 className="onboarding-title">{t('onboarding.step1_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step1_desc')}</p>
                         <div className="input-group">
                             <input
                                 className="onboarding-input"
-                                placeholder="Username (e.g. CaptainAwesome)"
+                                placeholder={t('onboarding.username_placeholder')}
                                 value={formData.username}
                                 onChange={e => updateData('username', e.target.value)}
                                 autoFocus
                             />
+                            {formData.username && profanityFilter.isProfane(formData.username) && (
+                                <p style={{ color: '#ff6b6b', fontSize: '0.8rem', marginTop: '5px' }}>
+                                    {t('onboarding.profanity_error')}
+                                </p>
+                            )}
                         </div>
                         <div className="input-group">
                             <input
                                 className="onboarding-input"
-                                placeholder="Email Address (Optional)"
+                                placeholder={t('onboarding.email_placeholder')}
                                 value={formData.email}
                                 onChange={e => updateData('email', e.target.value)}
+                                disabled={verificationState.isVerified}
                             />
+                            {!verificationState.isVerified && (
+                                <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                                    {!verificationState.isSent ? (
+                                        <button
+                                            className="btn-secondary"
+                                            onClick={handleSendEmail}
+                                            disabled={!formData.email || verificationState.loading}
+                                        >
+                                            {verificationState.loading ? t('onboarding.sending') : t('onboarding.verify_email')}
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <input
+                                                className="onboarding-input"
+                                                style={{ width: '100px', textAlign: 'center' }}
+                                                placeholder="Code"
+                                                value={verificationState.code}
+                                                onChange={e => setVerificationState(prev => ({ ...prev, code: e.target.value }))}
+                                            />
+                                            <button
+                                                className="btn-primary"
+                                                onClick={handleVerifyCode}
+                                                disabled={verificationState.loading}
+                                            >
+                                                {t('onboarding.submit')}
+                                            </button>
+                                            <button
+                                                className="btn-secondary"
+                                                onClick={handleSendEmail}
+                                                disabled={verificationState.timer > 0 || verificationState.loading}
+                                            >
+                                                {verificationState.timer > 0 ? `${t('onboarding.resend')} (${verificationState.timer})` : t('onboarding.resend')}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            {verificationState.isVerified && <p style={{ color: '#4ade80', marginTop: '5px' }}>{t('onboarding.verified')}</p>}
                         </div>
                     </>
                 );
             case 2:
                 return (
                     <>
-                        <h1 className="onboarding-title">Just checking... 🎂</h1>
-                        <p className="onboarding-desc">How old are you? We curate content based on age appropriateness.</p>
+                        <h1 className="onboarding-title">{t('onboarding.step2_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step2_desc')}</p>
                         <div className="input-group">
                             <input
                                 type="number"
                                 className="onboarding-input"
-                                placeholder="Age"
+                                placeholder={t('onboarding.age_placeholder')}
                                 value={formData.age}
                                 onChange={e => updateData('age', e.target.value)}
                                 autoFocus
@@ -152,12 +255,12 @@ const Onboarding = () => {
             case 3:
                 return (
                     <>
-                        <h1 className="onboarding-title">Unlock AI Magic 🤖</h1>
-                        <p className="onboarding-desc">If you have a Gemini API Key, enter it here to enable AI subtitles and recommendations. You can skip this!</p>
+                        <h1 className="onboarding-title">{t('onboarding.step3_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step3_desc')}</p>
                         <div className="input-group">
                             <input
                                 className="onboarding-input"
-                                placeholder="Gemini API Key (starts with AIza...)"
+                                placeholder={t('onboarding.apikey_placeholder')}
                                 value={formData.apiKey}
                                 onChange={e => updateData('apiKey', e.target.value)}
                             />
@@ -167,8 +270,8 @@ const Onboarding = () => {
             case 4:
                 return (
                     <>
-                        <h1 className="onboarding-title">Pick your Vibe 🍿</h1>
-                        <p className="onboarding-desc">Select the genres you love. We'll prioritize these.</p>
+                        <h1 className="onboarding-title">{t('onboarding.step4_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step4_desc')}</p>
                         <div className="genre-grid">
                             {GENRES.map(g => (
                                 <div
@@ -185,21 +288,21 @@ const Onboarding = () => {
             case 5:
                 return (
                     <>
-                        <h1 className="onboarding-title">Go Premium? 💎</h1>
-                        <p className="onboarding-desc">Support us and get 4K streaming and zero ads.</p>
+                        <h1 className="onboarding-title">{t('onboarding.step5_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step5_desc')}</p>
                         <div className="input-group" style={{ textAlign: 'center' }}>
                             <button
                                 className={`btn-primary ${formData.isPremium ? '' : 'btn-secondary'}`}
                                 style={{ width: '100%', marginBottom: '10px' }}
                                 onClick={() => updateData('isPremium', true)}
                             >
-                                Yes! Take my money! ($0.00 today)
+                                {t('onboarding.premium_yes')}
                             </button>
                             <button
                                 className={`btn-secondary`}
                                 onClick={() => updateData('isPremium', false)}
                             >
-                                No thanks, I'm broke.
+                                {t('onboarding.premium_no')}
                             </button>
                         </div>
                     </>
@@ -207,8 +310,8 @@ const Onboarding = () => {
             case 6:
                 return (
                     <>
-                        <h1 className="onboarding-title">Small world! 🌍</h1>
-                        <p className="onboarding-desc">How did you stumble upon our little cinema?</p>
+                        <h1 className="onboarding-title">{t('onboarding.step6_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step6_desc')}</p>
                         <div className="genre-grid">
                             {SOURCES.map(s => (
                                 <div
@@ -225,8 +328,8 @@ const Onboarding = () => {
             case 7:
                 return (
                     <>
-                        <h1 className="onboarding-title">Red Lines 🚫</h1>
-                        <p className="onboarding-desc">Select content types you absolutely NEVER want to see.</p>
+                        <h1 className="onboarding-title">{t('onboarding.step7_title')}</h1>
+                        <p className="onboarding-desc">{t('onboarding.step7_desc')}</p>
                         <div className="genre-grid">
                             {BLACKLIST.map(b => (
                                 <div
@@ -243,11 +346,12 @@ const Onboarding = () => {
             case 8:
                 return (
                     <>
-                        <h1 className="onboarding-title">You're All Set! 🎉</h1>
+                        <h1 className="onboarding-title">{t('onboarding.step8_title')}</h1>
                         <p className="onboarding-desc">
-                            Welcome to the club, <span style={{ color: '#FF8E53' }}>{formData.username}</span>.
-                            <br /><br />
-                            We've saved your preferences. You can always change them later in settings.
+                            <Trans i18nKey="onboarding.step8_desc" values={{ username: formData.username }}>
+                                Welcome to the club, <span style={{ color: '#FF8E53' }}>{formData.username}</span>.<br /><br />
+                                We've saved your preferences. You can always change them later in settings.
+                            </Trans>
                         </p>
                     </>
                 );

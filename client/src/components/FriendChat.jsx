@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './FriendChat.css';
 
-const FriendChat = ({ friend, myId, onClose }) => {
+const FriendChat = ({ friend, myId, onClose, onRemove, onClearHistory }) => {
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
     const chatEndRef = useRef(null);
@@ -59,11 +59,33 @@ const FriendChat = ({ friend, myId, onClose }) => {
         }));
     };
 
+    const [showOptions, setShowOptions] = useState(false);
+
     return (
         <div className="friend-chat-modal fade-in">
             <div className="chat-header">
                 <div className="chat-avatar">{friend.name[0]}</div>
                 <h3>{friend.name}</h3>
+                <div style={{ marginLeft: 'auto', position: 'relative' }}>
+                    <button className="options-btn" onClick={() => setShowOptions(!showOptions)}>⋮</button>
+                    {showOptions && (
+                        <div className="chat-options-menu">
+                            <button onClick={() => {
+                                if (window.confirm('Delete chat history?')) {
+                                    onClearHistory && onClearHistory(friend.id);
+                                    setMessages([]); // Clear local state immediately
+                                    setShowOptions(false);
+                                }
+                            }}>Clear History</button>
+                            <button onClick={() => {
+                                if (window.confirm(`Remove ${friend.name}?`)) {
+                                    onRemove && onRemove(friend.id);
+                                    onClose(); // Close modal
+                                }
+                            }} style={{ color: '#ff6b6b' }}>Remove Friend</button>
+                        </div>
+                    )}
+                </div>
                 <button className="close-btn" onClick={onClose}>×</button>
             </div>
 

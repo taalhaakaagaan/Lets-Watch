@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Peer from 'peerjs';
 import VideoPlayer from '../components/VideoPlayer';
 import Chat from '../components/Chat';
 import './Room.css';
+import { profanityFilter } from '../utils/profanity';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -54,6 +56,7 @@ class ErrorBoundary extends React.Component {
 
 const RoomContent = () => {
     const { roomId } = useParams();
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const location = useLocation();
@@ -164,7 +167,7 @@ const RoomContent = () => {
         conn.on('open', () => {
             // Capacity Check (Host Only)
             if (isHost && maxUsers && Object.keys(connectionsRef.current).length >= maxUsers) {
-                conn.send({ type: 'error', payload: 'Room is Full' });
+                conn.send({ type: 'error', payload: t('room.full') });
                 setTimeout(() => conn.close(), 500);
                 return;
             }
@@ -182,6 +185,18 @@ const RoomContent = () => {
             if (isHost && videoRef.current && videoRef.current.captureStream) {
                 callPeer(conn.peer);
             }
+
+            // Sync Initial State (Host -> New Peer)
+            if (isHost && videoRef.current) {
+                const initialSyncData = {
+                    type: 'sync-initial',
+                    payload: {
+                        currentTime: videoRef.current.currentTime,
+                        isPlaying: !videoRef.current.paused
+                    }
+                };
+                conn.send(initialSyncData);
+            }
         });
 
         conn.on('data', (data) => {
@@ -192,7 +207,7 @@ const RoomContent = () => {
             console.log("Connection closed:", conn.peer);
             delete connectionsRef.current[conn.peer];
             if (isHost) setConnectedUsers(prev => prev.filter(u => u.peerId !== conn.peer));
-            addNotification("A user disconnected");
+            addNotification(t('room.user_disconnected'));
         });
     };
 
@@ -219,6 +234,11 @@ const RoomContent = () => {
             window.location.href = '#/dashboard';
             return;
         }
+        if (data.type === 'end-session') {
+            alert(t('room.session_ended'));
+            window.location.href = '#/dashboard';
+            return;
+        }
 
         if (data.type === 'start-countdown') {
             // Viewer receives countdown start
@@ -236,6 +256,10 @@ const RoomContent = () => {
         else if (data.type === 'sync') {
             // Sync event
             handleSync(data.payload);
+        }
+        else if (data.type === 'sync-initial') {
+            // Late Joiner Sync
+            handleInitialSync(data.payload);
         }
     };
 
@@ -280,7 +304,7 @@ const RoomContent = () => {
 
         const msgPayload = {
             user: username,
-            text,
+            text: profanityFilter.clean(text), // Clean profanity before sending
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -324,6 +348,18 @@ const RoomContent = () => {
             if (timeDiff > 0.5) videoRef.current.currentTime = currentTime;
         } else if (event === 'seek') {
             videoRef.current.currentTime = currentTime;
+        }
+    };
+
+    const handleInitialSync = ({ currentTime, isPlaying }) => {
+        if (!videoRef.current) return;
+        console.log("Initial Sync:", currentTime, isPlaying);
+
+        videoRef.current.currentTime = currentTime;
+        if (isPlaying) {
+            videoRef.current.play().catch(e => console.log("Autoplay blocked usually ok if user interacted", e));
+        } else {
+            videoRef.current.pause();
         }
     };
 
@@ -383,9 +419,9 @@ const RoomContent = () => {
                         {isHost && <span style={{ fontSize: '0.8rem', color: '#999', marginLeft: '10px' }}>({connectedUsers.length + 1}/{maxUsers})</span>}
                         <div className="room-id-badge" onClick={() => {
                             navigator.clipboard.writeText(roomId);
-                            addNotification("Room ID copied!");
+                            addNotification(t('room.room_id_copied'));
                         }}>
-                            <span>ID: {roomId}</span>
+                            <span>{t('room.id')}: {roomId}</span>
                             <span className="copy-icon">📋</span>
                         </div>
                     </div>
@@ -414,12 +450,24 @@ const RoomContent = () => {
                     )}
 
                     {isHost && showStartButton && (
-                        <div className="start-movie-container" style={{ marginTop: '10px', display: 'flex', justifyContent: 'center' }}>
-                            <button onClick={handleStartMovie} style={{
-                                padding: '12px 30px', background: '#ff6b6b', border: 'none',
-                                borderRadius: '5px', color: 'white', fontSize: '1.2rem', cursor: 'pointer',
-                                boxShadow: '0 4px 15px rgba(255, 107, 107, 0.4)'
-                            }}> Start Movie </button>
+                        <div className="start-movie-container">
+                            <button onClick={handleStartMovie} className="start-movie-btn">
+                                {t('room.start_movie')}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* End Session Button (Host Only, Separate from Start) */}
+                    {isHost && (
+                        <div className="end-movie-container">
+                            <button onClick={() => {
+                                if (confirm(t('room.end_movie') + '?')) {
+                                    broadcastData({ type: 'end-session' });
+                                    setTimeout(() => window.location.href = '#/dashboard', 500);
+                                }
+                            }} className="end-movie-btn">
+                                🛑 {t('room.end_movie')}
+                            </button>
                         </div>
                     )}
                 </div>

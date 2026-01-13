@@ -76,8 +76,16 @@
 
 .chat-input-area button {
     padding: 10px 20px;
-    background: var(--primary-color);
+    background: linear-gradient(135deg, #ff6b6b, #e50914);
     color: #fff;
     border-radius: var(--radius-md);
     font-weight: bold;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.chat-input-area button:hover {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #ff8e53, #ff6b6b);
 }
