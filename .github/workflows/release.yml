@@ -26,7 +26,10 @@ jobs:
           node-version: 18
 
       - name: Install Dependencies
-        run: npm ci
+        run: |
+          npm ci
+          cd client
+          npm ci
 
       # Build for Windows
       - name: Build Windows
