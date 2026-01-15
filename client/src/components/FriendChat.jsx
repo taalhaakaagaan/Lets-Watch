@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './FriendChat.css';
+import { GeminiService } from '../services/GeminiService';
 
 const FriendChat = ({ friend, myId, onClose, onRemove, onClearHistory }) => {
     const [messages, setMessages] = useState([]);
@@ -28,6 +29,8 @@ const FriendChat = ({ friend, myId, onClose, onRemove, onClearHistory }) => {
         // Wait, the user wants "persistent DM".
     }, [friend.id]);
 
+    const [isTyping, setIsTyping] = useState(false);
+
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -54,37 +57,102 @@ const FriendChat = ({ friend, myId, onClose, onRemove, onClearHistory }) => {
         // HACK: Dispatch a custom event so Dashboard can pick it up? 
         // Or just use a prop. Let's assume we pass a `sendFunction`.
 
+        // Check for AI Interaction
+        if (friend.isAi) {
+            const service = new GeminiService(friend.apiKey);
+
+            // Initial "Typing"
+            // Delay before typing starts (e.g. 2s reading time)
+            setTimeout(() => setIsTyping(true), 1500);
+
+            service.randomDelay().then(async () => {
+                // Pass persona data if available
+                const responseText = await service.sendMessage(newHistory, inputText, friend.persona || {}, friend.mode);
+
+                setIsTyping(false); // Stop typing
+
+                const aiMsg = {
+                    sender: friend.id,
+                    text: responseText,
+                    timestamp: new Date().toISOString()
+                };
+
+                setMessages(prev => {
+                    const updated = [...prev, aiMsg];
+                    localStorage.setItem(`chat_history_${friend.id}`, JSON.stringify(updated));
+                    return updated;
+                });
+                // Force scroll? It might happen naturally if user is looking
+                // scrollToBottom(); // Can't easily call from closure without ref current check
+                // Ideally use useEffect usage on [messages]
+            });
+
+            return; // Stop here, don't emit event
+        }
+
+
         window.dispatchEvent(new CustomEvent('send-dm', {
             detail: { targetId: friend.id, message: msg }
         }));
     };
 
+    // Auto-scroll on new messages
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
     const [showOptions, setShowOptions] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [confirmRemove, setConfirmRemove] = useState(false);
 
     return (
         <div className="friend-chat-modal fade-in">
             <div className="chat-header">
-                <div className="chat-avatar">{friend.name[0]}</div>
-                <h3>{friend.name}</h3>
+                <div className="chat-avatar">
+                    {friend.avatar ? <img src={friend.avatar} alt="av" /> : friend.name[0]}
+                </div>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '1rem' }}>{friend.name}</h3>
+                    {/* IG Style Online Status: Only show 'Active now' if typing or recently messaged */}
+                    {isTyping ?
+                        <span style={{ fontSize: '0.7rem', color: '#888' }}>Active now</span> :
+                        messages.length > 0 ? <span style={{ fontSize: '0.7rem', color: '#888' }}>Active 1h ago</span> : null
+                    }
+                </div>
                 <div style={{ marginLeft: 'auto', position: 'relative' }}>
                     <button className="options-btn" onClick={() => setShowOptions(!showOptions)}>⋮</button>
-                    {showOptions && (
-                        <div className="chat-options-menu">
-                            <button onClick={() => {
-                                if (window.confirm('Delete chat history?')) {
-                                    onClearHistory && onClearHistory(friend.id);
-                                    setMessages([]); // Clear local state immediately
-                                    setShowOptions(false);
+                    {showOptions && <div className="chat-options-menu">
+                        <button className={confirmDelete ? "confirm-danger" : ""} onClick={() => {
+                            if (!confirmDelete) {
+                                setConfirmDelete(true);
+                                // Reset confirm after 3s
+                                setTimeout(() => setConfirmDelete(false), 3000);
+                                return;
+                            }
+                            onClearHistory && onClearHistory(friend.id);
+                            setMessages([]);
+                            setConfirmDelete(false);
+                            setShowOptions(false);
+                        }}>
+                            {confirmDelete ? "Sure? Click again" : "Clear History"}
+                        </button>
+
+                        {!friend.isAi && <button className={confirmRemove ? "confirm-danger" : ""}
+                            style={{ color: '#ff6b6b' }}
+                            onClick={() => {
+                                if (!confirmRemove) {
+                                    setConfirmRemove(true);
+                                    setTimeout(() => setConfirmRemove(false), 3000);
+                                    return;
                                 }
-                            }}>Clear History</button>
-                            <button onClick={() => {
-                                if (window.confirm(`Remove ${friend.name}?`)) {
-                                    onRemove && onRemove(friend.id);
-                                    onClose(); // Close modal
-                                }
-                            }} style={{ color: '#ff6b6b' }}>Remove Friend</button>
-                        </div>
-                    )}
+                                onRemove && onRemove(friend.id);
+                                setConfirmRemove(false);
+                                onClose();
+                            }}>
+                            {confirmRemove ? "Really Remove?" : "Remove Friend"}
+                        </button>}
+                    </div>
+                    }
                 </div>
                 <button className="close-btn" onClick={onClose}>×</button>
             </div>
@@ -96,6 +164,11 @@ const FriendChat = ({ friend, myId, onClose, onRemove, onClearHistory }) => {
                         <span className="time">{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                 ))}
+                {isTyping && (
+                    <div className="chat-bubble them typing-indicator">
+                        <span>...</span>
+                    </div>
+                )}
                 <div ref={chatEndRef} />
             </div>
 

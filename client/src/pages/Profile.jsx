@@ -12,10 +12,28 @@ const Profile = () => {
     const [activeTab, setActiveTab] = useState('history');
 
     // Identity
-    const username = localStorage.getItem('letswatch_username') || 'Guest';
+    const [username, setUsername] = useState(localStorage.getItem('letswatch_username') || 'Guest');
     const myStableId = localStorage.getItem('letswatch_peer_id') || 'Generating...';
     // Display ID format: username@id (but peer id is just the id part)
-    const displayIdentity = `${username}@${myStableId}`;
+    const displayIdentity = `${username}@${myStableId.split('-').pop()}`; // Just show random part for cleaner ID? Or full? Let's show Full for uniqueness.
+
+    // Edit State
+    const [isEditing, setIsEditing] = useState(false);
+    const [editName, setEditName] = useState(username);
+    const [prefs, setPrefs] = useState({});
+
+    useEffect(() => {
+        const p = JSON.parse(localStorage.getItem('letswatch_preferences') || '{}');
+        setPrefs(p);
+    }, []);
+
+    const saveName = () => {
+        if (editName.trim()) {
+            setUsername(editName);
+            localStorage.setItem('letswatch_username', editName);
+        }
+        setIsEditing(false);
+    };
 
     // Avatar
     const [avatar, setAvatar] = useState(localStorage.getItem('letswatch_avatar') || null);
@@ -30,6 +48,7 @@ const Profile = () => {
 
     // Chat State
     const [chatFriend, setChatFriend] = useState(null);
+    const [chatVisible, setChatVisible] = useState(false);
 
     useEffect(() => {
         // Load Data
@@ -57,12 +76,27 @@ const Profile = () => {
                 canvas.height = 128; // Square avatar
                 ctx.drawImage(img, 0, 0, 128, 128);
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                setAvatar(dataUrl);
-                localStorage.setItem('letswatch_avatar', dataUrl);
+                try {
+                    localStorage.setItem('letswatch_avatar', dataUrl);
+                    setAvatar(dataUrl);
+                } catch (e) {
+                    console.error("Storage Quota Exceeded for Avatar", e);
+                    alert("Image too large for local storage!");
+                }
             };
         };
         reader.readAsDataURL(file);
     };
+
+    // Sync Avatar on focus/mount
+    useEffect(() => {
+        const checkAvatar = () => {
+            const stored = localStorage.getItem('letswatch_avatar');
+            if (stored && stored !== avatar) setAvatar(stored);
+        };
+        window.addEventListener('focus', checkAvatar);
+        return () => window.removeEventListener('focus', checkAvatar);
+    }, [avatar]);
 
     const handleRemoveAvatar = () => {
         setAvatar(null);
@@ -92,41 +126,7 @@ const Profile = () => {
         <div className="profile-container fade-in">
             <button className="back-button" onClick={() => navigate('/dashboard')}>{t('profile.back_dashboard')}</button>
 
-            <div className="profile-header">
-                {/* Avatar Section */}
-                <div className="avatar-wrapper">
-                    <div className="avatar-circle-lg" style={{
-                        backgroundImage: avatar ? `url(${avatar})` : 'none',
-                        backgroundSize: 'cover'
-                    }}>
-                        {!avatar && username[0]}
-                    </div>
-                    <div className="avatar-controls">
-                        <label className="upload-btn">
-                            {t('profile.change_avatar')}
-                            <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
-                        </label>
-                        {avatar && <button className="remove-btn" onClick={handleRemoveAvatar}>✕</button>}
-                    </div>
-                </div>
-
-                <h1>{username}</h1>
-
-                {/* Identity Badge */}
-                <div className="identity-badge" onClick={() => {
-                    navigator.clipboard.writeText(displayIdentity);
-                    alert("Copied to clipboard!");
-                }}>
-                    <span>{displayIdentity}</span>
-                    <span className="copy-icon">📋</span>
-                </div>
-
-                <div className="stats-row">
-                    <div className="stat-pill">🎬 {stats.roomsJoined} {t('profile.rooms_joined')}</div>
-                    <div className="stat-pill">⏱️ {Math.round(stats.hoursWatched)} {t('profile.hours_watched')}</div>
-                </div>
-            </div>
-
+            {/* TABS (Moved to Top) */}
             <div className="tabs">
                 <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>{t('profile.tab_history')}</button>
                 <button className={`tab ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => setActiveTab('friends')}>{t('profile.tab_friends')}</button>
@@ -179,7 +179,10 @@ const Profile = () => {
                                             </div>
                                         </div>
                                         <div className="friend-actions">
-                                            <button className="msg-btn" onClick={() => setChatFriend(friend)}>💬</button>
+                                            <button className="msg-btn" onClick={() => {
+                                                setChatFriend(friend);
+                                                setChatVisible(true);
+                                            }}>💬</button>
                                             <button className="join-friend-btn" onClick={() => navigate(`/room/${friend.id}?mode=viewer`)}>{t('profile.join')}</button>
                                             <button className="delete-btn" onClick={() => removeFriend(friend.id)}>🗑️</button>
                                         </div>
@@ -228,21 +231,100 @@ const Profile = () => {
                 )}
             </div>
 
-            {/* Friend Chat Modal */}
+            {/* HEADER MOVED TO BOTTOM */}
+            <div className="profile-header">
+                {/* Avatar Section */}
+                <div className="avatar-wrapper">
+                    <div className="avatar-circle-lg" style={{
+                        backgroundImage: avatar ? `url(${avatar})` : 'none',
+                        backgroundSize: 'cover'
+                    }}>
+                        {!avatar && username[0]}
+                    </div>
+                    <div className="avatar-controls">
+                        <label className="upload-btn">
+                            {t('profile.change_avatar')}
+                            <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
+                        </label>
+                        {avatar && <button className="remove-btn" onClick={handleRemoveAvatar}>✕</button>}
+                    </div>
+                </div>
+
+                <div className="profile-decoration-blob blob-1"></div>
+                <div className="profile-decoration-blob blob-2"></div>
+
+                {/* Username Edit */}
+                <div className="username-container">
+                    {isEditing ? (
+                        <input
+                            className="username-edit-input"
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            onBlur={saveName}
+                            onKeyDown={e => e.key === 'Enter' && saveName()}
+                            autoFocus
+                        />
+                    ) : (
+                        <h1 onClick={() => { setEditName(username); setIsEditing(true); }} title="Click to Edit">{username} ✎</h1>
+                    )}
+                </div>
+
+                {/* Identity Badge */}
+                <div className="identity-badge" onClick={() => {
+                    navigator.clipboard.writeText(displayIdentity);
+                    alert("Copied Identity to clipboard!");
+                }}>
+                    <span className="id-label">ID:</span>
+                    <span className="id-value">{displayIdentity}</span>
+                    <span className="copy-icon">📋</span>
+                </div>
+
+                {/* Detailed Profile Info */}
+                <div className="profile-details-grid">
+                    <div className="detail-card">
+                        <h3>Bio</h3>
+                        <p>{prefs.bio || "No bio yet."}</p>
+                    </div>
+                    <div className="detail-card">
+                        <h3>Genres</h3>
+                        <div className="tags-row">
+                            {(prefs.genres || []).map(g => <span key={g} className="tag">{g}</span>)}
+                        </div>
+                    </div>
+                    {prefs.socialHandle && (
+                        <div className="detail-card full-width" style={{ gridColumn: '1 / -1' }}>
+                            <h3>Social</h3>
+                            <p>@{prefs.socialHandle}</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="stats-row">
+                    <div className="stat-pill">🎬 {stats.roomsJoined} {t('profile.rooms_joined')}</div>
+                    <div className="stat-pill">⏱️ {Math.round(stats.hoursWatched)} {t('profile.hours_watched')}</div>
+                </div>
+            </div>
+
+            {/* Friend Chat Modal - persistent but hidden when closed to keep AI alive */}
             {
                 chatFriend && (
-                    <FriendChat
-                        friend={chatFriend}
-                        myId={myStableId}
-                        onClose={() => setChatFriend(null)}
-                        onRemove={(id) => {
-                            removeFriend(id);
-                            setChatFriend(null);
-                        }}
-                        onClearHistory={clearChatHistory}
-                    />
+                    <div style={{ display: chatVisible ? 'block' : 'none' }}>
+                        <FriendChat
+                            friend={chatFriend}
+                            myId={myStableId}
+                            onClose={() => setChatVisible(false)} // Just hide, don't unmount
+                            onRemove={(id) => {
+                                removeFriend(id);
+                                setChatFriend(null);
+                                setChatVisible(false);
+                            }}
+                            onClearHistory={clearChatHistory}
+                        />
+                    </div>
                 )
             }
+            {/* Footer removed as requested */}
+            {/* <Footer /> */}
         </div >
     );
 };

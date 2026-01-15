@@ -1,0 +1,20 @@
+export const EUROPE_DATA = {
+    "United Kingdom": ["London", "Manchester", "Birmingham", "Edinburgh", "Glasgow", "Liverpool", "Bristol", "Leeds"],
+    "Germany": ["Berlin", "Munich", "Hamburg", "Cologne", "Frankfurt", "Stuttgart", "Düsseldorf", "Leipzig"],
+    "France": ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier"],
+    "Spain": ["Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza", "Málaga", "Murcia", "Palma"],
+    "Italy": ["Rome", "Milan", "Naples", "Turin", "Palermo", "Genoa", "Bologna", "Florence"],
+    "Netherlands": ["Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven", "Tilburg"],
+    "Belgium": ["Brussels", "Antwerp", "Ghent", "Charleroi", "Liège", "Bruges"],
+    "Switzerland": ["Zurich", "Geneva", "Basel", "Lausanne", "Bern", "Winterthur"],
+    "Austria": ["Vienna", "Graz", "Linz", "Salzburg", "Innsbruck"],
+    "Sweden": ["Stockholm", "Gothenburg", "Malmö", "Uppsala"],
+    "Norway": ["Oslo", "Bergen", "Trondheim", "Stavanger"],
+    "Denmark": ["Copenhagen", "Aarhus", "Odense", "Aalborg"],
+    "Finland": ["Helsinki", "Espoo", "Tampere", "Vantaa"],
+    "Ireland": ["Dublin", "Cork", "Limerick", "Galway"],
+    "Portugal": ["Lisbon", "Porto", "Vila Nova de Gaia", "Amadora"],
+    "Poland": ["Warsaw", "Kraków", "Łódź", "Wrocław", "Poznań", "Gdańsk"],
+    "Czech Republic": ["Prague", "Brno", "Ostrava", "Plzeň"],
+    "Hungary": ["Budapest", "Debrecen", "Szeged", "Miskolc"]
+};

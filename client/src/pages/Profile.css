@@ -14,24 +14,217 @@
     margin-bottom: 40px;
 }
 
-.avatar-circle {
-    width: 100px;
-    height: 100px;
+/* Decoration Blobs */
+.profile-decoration-blob {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.5;
+    animation: floatBlob 10s infinite alternate;
+}
+
+.blob-1 {
+    top: -50px;
+    left: -50px;
+    background: rgba(110, 142, 251, 0.4);
+}
+
+.blob-2 {
+    bottom: -50px;
+    right: -50px;
+    background: rgba(167, 119, 227, 0.4);
+}
+
+@keyframes floatBlob {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(30px, 30px);
+    }
+}
+
+.username-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.username-container h1 {
+    font-size: 2.5rem;
+    margin: 10px 0;
+    transition: color 0.2s;
+}
+
+.username-container h1:hover {
+    color: #a777e3;
+}
+
+.username-edit-input {
+    font-size: 2rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #a777e3;
+    color: white;
+    text-align: center;
+    width: 300px;
+    outline: none;
+    padding: 5px;
+}
+
+.identity-badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-family: monospace;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.identity-badge:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.id-label {
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+.id-value {
+    color: #6e8efb;
+    font-weight: bold;
+}
+
+/* Details Grid */
+.profile-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    margin: 25px 0;
+}
+
+.detail-card {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: left;
+}
+
+.detail-card h3 {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 5px;
+}
+
+.detail-card p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #eee;
+}
+
+.tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    background: rgba(110, 142, 251, 0.2);
+    color: #6e8efb;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+}
+
+.avatar-circle-lg {
+    width: 150px;
+    height: 150px;
     border-radius: 50%;
     background: linear-gradient(135deg, #ff6b6b, #e50914);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3rem;
+    font-size: 4rem;
     font-weight: bold;
     margin-bottom: 20px;
     box-shadow: 0 10px 20px rgba(229, 9, 20, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.avatar-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.upload-btn {
+    cursor: pointer;
+    background: #333;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: #fff;
+    border: 1px solid #444;
+}
+
+.remove-btn {
+    background: #ff3b30;
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.msg-btn {
+    background: #6e8efb;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2rem;
 }
 
 .stats-row {
     display: flex;
     gap: 20px;
     margin-top: 15px;
+}
+
+/* ... existing code ... */
+.contact-form button {
+    padding: 12px;
+    background: #6e8efb;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+
+.contact-form button:hover {
+    background: #5a7de0;
 }
 
 .stat-pill {
@@ -43,13 +236,14 @@
     border: 1px solid #333;
 }
 
-/* Tabs */
+/* Tabs update */
 .tabs {
     display: flex;
-    gap: 10px;
-    margin-bottom: 30px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 5px;
+    border-radius: 12px;
+    gap: 5px;
+    margin-bottom: 20px;
 }
 
 .tab {
@@ -208,12 +402,18 @@
 
 .contact-form button {
     padding: 12px;
-    background: #fff;
-    color: #000;
+    background: #6e8efb;
+    color: #fff;
     border: none;
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+
+.contact-form button:hover {
+    background: #5a7de0;
 }
 
 /* Language Settings */

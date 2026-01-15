@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Peer from 'peerjs';
 import SocialPanel from '../components/SocialPanel';
+import Footer from '../components/Footer';
 import { useFriends } from '../hooks/useFriends';
 import './Dashboard.css';
 
@@ -73,7 +74,17 @@ const Dashboard = () => {
     };
 
     // --- Global Peer & DM Logic ---
-    const myStableId = localStorage.getItem('letswatch_peer_id');
+    // Ensure we have a stable ID
+    let storedId = localStorage.getItem('letswatch_peer_id');
+    if (!storedId) {
+        const username = localStorage.getItem('letswatch_username') || 'Guest';
+        const randomPart = Math.random().toString(36).substr(2, 6);
+        // Format: Username-Random (Sanitized)
+        const sanitizedParams = username.replace(/[^a-zA-Z0-9]/g, '');
+        storedId = `${sanitizedParams}-${randomPart}`;
+        localStorage.setItem('letswatch_peer_id', storedId);
+    }
+    const myStableId = storedId;
     const [globalPeer, setGlobalPeer] = useState(null);
 
     // Social Logic
@@ -229,6 +240,7 @@ const Dashboard = () => {
                     </div>
                 )
             }
+            <Footer />
         </div>
     );
 };

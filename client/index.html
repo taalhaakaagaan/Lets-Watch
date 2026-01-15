@@ -11,7 +11,7 @@
 <body>
   <div id="root"></div>
   <div id="global-error"
-    style="color: red; padding: 20px; z-index: 9999; position: absolute; top: 0; left: 0; background: rgba(0,0,0,0.8); white-space: pre-wrap;">
+    style="display: none; color: red; padding: 20px; z-index: 9999; position: absolute; top: 0; left: 0; background: rgba(0,0,0,0.8); white-space: pre-wrap;">
   </div>
   <script>
     window.global = window;
@@ -19,6 +19,7 @@
 
     window.onerror = function (message, source, lineno, colno, error) {
       const el = document.getElementById('global-error');
+      el.style.display = 'block';
       el.innerHTML += `<h3>Global Error:</h3><p>${message}</p><p>${source}:${lineno}:${colno}</p><pre>${error && error.stack}</pre>`;
     };
 

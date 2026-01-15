@@ -1,0 +1,38 @@
+{
+    "intro": {
+        "loading": "Cargando...",
+        "skip": "Saltar",
+        "selectLanguage": "Seleccionar idioma"
+    },
+    "onboarding": {
+        "step1_title": "Seleccionar idioma",
+        "step1_desc": "Por favor seleccione su idioma preferido.",
+        "step2_title": "Identidad y Ubicación",
+        "step2_desc": "El contexto: Para personalizar tu perfil y contenido local.",
+        "username_placeholder": "Nombre de usuario",
+        "email_placeholder": "Correo electrónico",
+        "country_placeholder": "País",
+        "city_placeholder": "Ciudad",
+        "verify_email": "Verificar",
+        "sending": "Enviando...",
+        "submit": "Enviar",
+        "resend": "Reenviar",
+        "verified": "Verificado",
+        "select_country_first": "Seleccione un país primero",
+        "step3_title": "Propósito de la visita",
+        "step3_desc": "El contexto: Para recomendar el tamaño de sala adecuado.",
+        "purpose_a": "Cita y Cine",
+        "purpose_a_desc": "Salas íntimas (2 pers)",
+        "purpose_b": "Con Amigos",
+        "purpose_b_desc": "Grupo (2-10 pers)",
+        "purpose_c": "Streams",
+        "purpose_c_desc": "Grandes eventos (10+)",
+        "step4_title": "Funciones Avanzadas",
+        "step4_desc": "El contexto: Para análisis de IA con Gemini.",
+        "apikey_placeholder": "Clave API Gemini (Opcional)",
+        "back": "Atrás",
+        "next": "Siguiente",
+        "start_watching": "Empezar",
+        "profanity_error": "Nombre de usuario inapropiado."
+    }
+}
