@@ -72,6 +72,8 @@
     border: 1px solid var(--border-color);
     background: #000;
     color: #fff;
+    min-width: 0;
+    /* Prevent input from forcing overflow */
 }
 
 .chat-input-area button {
@@ -83,6 +85,8 @@
     border: none;
     cursor: pointer;
     transition: transform 0.2s;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .chat-input-area button:hover {

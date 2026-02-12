@@ -124,6 +124,8 @@
     padding: 10px 15px;
     color: white;
     outline: none;
+    min-width: 0;
+    /* Important for flex containers */
 }
 
 .chat-input-area button {
@@ -136,6 +138,7 @@
     font-size: 1.2rem;
     cursor: pointer;
     transition: transform 0.2s;
+    flex-shrink: 0;
 }
 
 .chat-input-area button:hover {

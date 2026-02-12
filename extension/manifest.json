@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "LetsWatch Side Panel",
+    "version": "1.0",
+    "description": "Stream from your browser tab to LetsWatch rooms.",
+    "icons": {
+        "128": "icon.svg"
+    },
+    "side_panel": {
+        "default_path": "sidepanel.html"
+    },
+    "permissions": [
+        "sidePanel"
+    ],
+    "host_permissions": [
+        "http://localhost:5173/*"
+    ]
+}

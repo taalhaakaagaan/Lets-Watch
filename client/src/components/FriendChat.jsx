@@ -67,7 +67,7 @@ const FriendChat = ({ friend, myId, onClose, onRemove, onClearHistory }) => {
 
             service.randomDelay().then(async () => {
                 // Pass persona data if available
-                const responseText = await service.sendMessage(newHistory, inputText, friend.persona || {}, friend.mode);
+                const responseText = await service.sendMessage(newHistory, myId, friend.persona || {}, friend.mode);
 
                 setIsTyping(false); // Stop typing
 

@@ -61,8 +61,10 @@ const RoomContent = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const filePath = location.state?.filePath;
+    const sourceType = location.state?.sourceType || searchParams.get('source') || 'file';
 
     const mode = searchParams.get('mode') || 'viewer';
+    const isExtensionView = searchParams.get('view') === 'extension';
     const isHost = mode === 'host';
     const maxUsers = isHost ? (location.state?.maxUsers || 5) : null;
 
@@ -73,6 +75,7 @@ const RoomContent = () => {
     const [messages, setMessages] = useState([]);
     const [countdown, setCountdown] = useState(null);
     const [showStartButton, setShowStartButton] = useState(isHost);
+    const [showSidebar, setShowSidebar] = useState(false); // For mobile/toggle
 
     const videoRef = useRef(null);
     const containerRef = useRef(null);
@@ -82,6 +85,9 @@ const RoomContent = () => {
 
     // Store my username
     const username = useRef(localStorage.getItem('letswatch_username') || `Guest-${Math.floor(Math.random() * 1000)}`).current;
+
+    // Remote streams (for multi-user, though current design is 1 host)
+    const [remoteStreams, setRemoteStreams] = useState({});
 
     const addNotification = (text) => {
         const id = Date.now();
@@ -112,6 +118,7 @@ const RoomContent = () => {
             console.log('My Peer ID is: ' + id);
             setPeerId(id);
             if (!isHost) {
+                // If viewer, connect to the Room ID (Host)
                 connectToHost(peer, roomId);
             }
         });
@@ -127,7 +134,11 @@ const RoomContent = () => {
             call.answer(); // Answer without stream? Or viewer doesn't send stream.
             call.on('stream', (remoteStream) => {
                 console.log("Received remote stream");
-                setStream(remoteStream);
+                if (isHost) {
+                    // If we support multi-stream later
+                } else {
+                    setStream(remoteStream);
+                }
             });
         });
 
@@ -182,8 +193,12 @@ const RoomContent = () => {
             }
 
             // If Host, call the user with stream if we have it
-            if (isHost && videoRef.current && videoRef.current.captureStream) {
-                callPeer(conn.peer);
+            if (isHost) {
+                if (sourceType === 'screen' && stream) {
+                    callPeer(conn.peer);
+                } else if (sourceType === 'file' && videoRef.current && videoRef.current.captureStream) {
+                    callPeer(conn.peer);
+                }
             }
 
             // Sync Initial State (Host -> New Peer)
@@ -214,8 +229,19 @@ const RoomContent = () => {
     const callPeer = (remotePeerId) => {
         if (!peerRef.current) return;
         try {
-            // Capture stream from video element
-            const streamToSend = videoRef.current.captureStream();
+            // Capture stream based on source type
+            let streamToSend;
+            if (sourceType === 'screen' && stream) {
+                streamToSend = stream;
+            } else if (sourceType === 'file' && videoRef.current) {
+                streamToSend = videoRef.current.captureStream();
+            }
+
+            if (!streamToSend) {
+                console.warn("No stream available to send to peer:", remotePeerId);
+                return;
+            }
+
             const call = peerRef.current.call(remotePeerId, streamToSend);
             console.log("Calling peer with stream:", remotePeerId);
         } catch (e) {
@@ -398,21 +424,58 @@ const RoomContent = () => {
         }, COUNTDOWN_SEC * 1000);
     };
 
-    // File change for local video (Host)
+
+    const handleStartScreenShare = async () => {
+        console.log("handleStartScreenShare: Clicked");
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            console.error("getDisplayMedia not supported", navigator.mediaDevices);
+            alert("Screen sharing is not supported in this browser/context.");
+            return;
+        }
+
+        try {
+            console.log("handleStartScreenShare: Requesting media...");
+            const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: true
+            });
+            console.log("handleStartScreenShare: Stream obtained", mediaStream);
+
+            setStream(mediaStream);
+            setShowStartButton(false);
+
+            // Call existing peers
+            connectedUsers.forEach(user => {
+                callPeer(user.peerId);
+            });
+
+            // Handle stream stop (user clicks "Stop Sharing" in browser UI)
+            mediaStream.getVideoTracks()[0].onended = () => {
+                console.log("handleStartScreenShare: Stream ended by user");
+                broadcastData({ type: 'end-session' }); // Or just stop stream
+                setStream(null);
+                setShowStartButton(true);
+            };
+
+        } catch (err) {
+            console.error("Error starting screen share:", err);
+            // alert("Failed to start screen share: " + err.message); 
+            addNotification("Failed to start screen share. check console.");
+        }
+    };
+
     const handleFileChange = () => {
-        // VideoPlayer handles src update via existing logic passing 'src={filePath}'?
-        // Actually filePath comes from location state.
-        // If user changes file via VideoPlayer input?
-        // We might need to refresh stream?
-        // implementation details...
+        // Implementation for file change if needed
     };
 
     return (
-        <div className="room-container">
+        <div className={`room-container ${isExtensionView ? 'extension-mode' : ''}`}>
             {notifications.map(n => (
                 <div key={n.id} className="notification-toast fade-in">{n.text}</div>
             ))}
-            <div className="main-area">
+
+            {!isExtensionView && (
                 <div className="room-header">
                     <div className="room-info">
                         <h2>{location.state?.roomName || `Room: ${roomId}`}</h2>
@@ -426,19 +489,30 @@ const RoomContent = () => {
                         </div>
                     </div>
                 </div>
+            )}
 
-                <div className="video-section" ref={containerRef}>
+            <div className={`main-content ${isExtensionView ? 'extension-layout' : ''}`}>
+
+                {/* 
+                    VIDEO SECTION
+                    In Extension Mode: Hidden but active (height: 0, overflow: hidden)
+                 */}
+                <div className={`video-section ${isExtensionView ? 'hidden-video' : ''}`} ref={containerRef}>
                     <VideoPlayer
-                        mode={mode}
+                        ref={videoRef}
                         isHost={isHost}
+                        isLocal={isHost}
                         stream={stream}
-                        src={filePath}
-                        videoRef={videoRef}
-                        onFileChange={handleFileChange}
+                        onStreamSet={(s) => setStream(s)}
+                        filePath={filePath}
+                        sourceType={sourceType}
+                        remoteStreams={remoteStreams}
                         onPlay={() => emitSync('play')}
                         onPause={() => emitSync('pause')}
                         onSeek={() => emitSync('seek')}
                     />
+
+                    {/* Standard UI Overlays (Countdown, Start Button) - Hide in Extension Mode if wanted, or styling handles it */}
                     {countdown !== null && (
                         <div className="countdown-overlay" style={{
                             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -449,37 +523,70 @@ const RoomContent = () => {
                         </div>
                     )}
 
-                    {isHost && showStartButton && (
-                        <div className="start-movie-container">
-                            <button onClick={handleStartMovie} className="start-movie-btn">
-                                {t('room.start_movie')}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* End Session Button (Host Only, Separate from Start) */}
-                    {isHost && (
-                        <div className="end-movie-container">
-                            <button onClick={() => {
-                                if (confirm(t('room.end_movie') + '?')) {
-                                    broadcastData({ type: 'end-session' });
-                                    setTimeout(() => window.location.href = '#/dashboard', 500);
-                                }
-                            }} className="end-movie-btn">
-                                🛑 {t('room.end_movie')}
-                            </button>
+                    {!isExtensionView && isHost && showStartButton && (
+                        <div className="start-movie-container" style={{ flexDirection: 'column' }}>
+                            {sourceType === 'screen' ? (
+                                <>
+                                    <button onClick={handleStartScreenShare} className="start-movie-btn">
+                                        📺 Start Screen Share
+                                    </button>
+                                </>
+                            ) : (
+                                <button onClick={handleStartMovie} className="start-movie-btn">
+                                    {t('room.start_movie')}
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
+
+                {/* 
+                    EXTENSION CONTROLS 
+                    Only visible in Extension Mode
+                */}
+                {isExtensionView && isHost && (
+                    <div className="extension-controls">
+                        <h3>Streaming Active</h3>
+                        <p>You are sharing this tab.</p>
+                        <div className="control-buttons">
+                            {showStartButton ? (
+                                <button className="start-movie-btn" style={{ padding: '10px 20px', fontSize: '1rem' }} onClick={handleStartScreenShare}>Start Sharing</button>
+                            ) : (
+                                <button className="stop-btn" onClick={() => {
+                                    stream?.getTracks().forEach(t => t.stop());
+                                    setStream(null);
+                                    setShowStartButton(true);
+                                    // Navigate back or just stay? 
+                                    // navigate('/extension'); 
+                                }}>Stop Stream</button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* 
+                    SIDEBAR / CHAT
+                    In Extension Mode: Takes up full remaining space
+                    In Normal Mode: Is the sidebar
+                */}
+                <div className={`sidebar ${showSidebar ? 'show' : ''}`}>
+                    <Chat
+                        messages={messages}
+                        onSendMessage={handleSendMessage}
+                        username={username}
+                        myId={peerId} // Pass myId for FriendChat usage if needed
+                    />
+                </div>
             </div>
 
-            <div className="sidebar">
-                <Chat
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
-                    username={username}
-                />
-            </div>
+            {/* Mobile/Toggle Controls for Normal Mode */}
+            {!isExtensionView && (
+                <div className="mobile-controls">
+                    <button onClick={() => setShowSidebar(!showSidebar)}>
+                        {showSidebar ? 'Hide Chat' : 'Show Chat'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

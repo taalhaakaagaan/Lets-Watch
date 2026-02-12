@@ -13,13 +13,16 @@
 .main-area {
     display: flex;
     flex-direction: column;
-    padding: 20px 40px;
-    gap: 20px;
+    padding: 20px;
+    gap: 15px;
     background: transparent;
     position: relative;
     overflow-y: auto;
     height: 100vh;
     box-sizing: border-box;
+    /* Scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
 }
 
 /* Room Header - Glassmorphism */
@@ -146,20 +149,59 @@
     }
 }
 
-/* Responsive */
+/* Responsive - Side Panel Support */
 @media (max-width: 1000px) {
     .room-container {
         grid-template-columns: 1fr;
         grid-template-rows: 60% 40%;
     }
+}
 
-    .room-header {
-        padding: 10px 15px;
+@media (max-width: 500px) {
+
+    /* Side Panel / Mobile Mode */
+    .room-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        /* Header + Video then Chat */
+        height: 100vh;
+    }
+
+    .main-area {
+        height: auto;
+        min-height: 250px;
+        /* Video area height */
+        padding: 10px;
+        overflow: visible;
+    }
+
+    .video-section {
+        min-height: 200px;
+        border-radius: 12px;
     }
 
     .sidebar {
-        border-left: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        height: 100%;
+        border-top: 1px solid #333;
+    }
+
+    .room-header {
+        padding: 8px 12px;
+        margin-bottom: 5px;
+    }
+
+    .room-info h2 {
+        font-size: 1.1rem;
+    }
+
+    .room-id-badge {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    .start-movie-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
     }
 }
 
@@ -220,6 +262,82 @@
 .end-movie-btn:hover {
     background: rgba(220, 20, 60, 0.8);
     color: white;
-    transform: translateY(-2px);
     box-shadow: 0 5px 20px rgba(220, 20, 60, 0.4);
+}
+
+/* Extension Mode Styles */
+.extension-mode {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #000;
+}
+
+.extension-mode .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.extension-mode .video-section.hidden-video {
+    height: 0;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    visibility: hidden;
+    overflow: hidden;
+    margin: 0;
+}
+
+.extension-mode .extension-controls {
+    visibility: visible;
+    background: #111;
+    padding: 15px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    height: auto;
+}
+
+.extension-mode .extension-controls h3 {
+    margin: 0;
+    color: #ff6b6b;
+    font-size: 1rem;
+}
+
+.extension-mode .extension-controls p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.extension-mode .control-buttons .stop-btn {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.extension-mode .sidebar {
+    flex: 1;
+    border: none;
+    width: 100%;
+    background: #000;
+}
+
+.extension-mode .chat-container {
+    height: 100%;
+    border: none;
+}
+
+.extension-mode .room-header,
+.extension-mode .mobile-controls {
+    display: none !important;
 }

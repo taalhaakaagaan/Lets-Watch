@@ -11,6 +11,8 @@ const CreateRoom = () => {
     const [roomName, setRoomName] = useState('');
     const [moviePath, setMoviePath] = useState('');
     const [movieName, setMovieName] = useState(''); // Extracted from path or manual
+    const [sourceType, setSourceType] = useState('file'); // 'file' or 'screen'
+    const [createdRoomId, setCreatedRoomId] = useState(null); // For extension instruction
     const [movieCategory, setMovieCategory] = useState('Action');
     const [movieDuration, setMovieDuration] = useState('');
     const [isPrivate, setIsPrivate] = useState(false);
@@ -52,7 +54,8 @@ const CreateRoom = () => {
 
         const config = {
             roomName,
-            moviePath, // Pass the full path
+            sourceType,
+            moviePath: sourceType === 'file' ? moviePath : null,
             movieName,
             movieCategory,
             movieDuration,
@@ -76,7 +79,7 @@ const CreateRoom = () => {
             return;
         }
 
-        if (!moviePath) {
+        if (sourceType === 'file' && !moviePath) {
             setError('Please select a movie file.');
             setLoading(false);
             return;
@@ -111,10 +114,20 @@ const CreateRoom = () => {
             stats.roomsJoined += 1;
             localStorage.setItem('letswatch_stats', JSON.stringify(stats));
 
-            // Navigate directly to room as Host
-            navigate(`/room/${newRoomId}?mode=host`, {
-                state: { filePath: moviePath, roomName, maxUsers }
-            });
+            // If File: Navigate directly. If Screen: Show instructions.
+            if (sourceType === 'file') {
+                navigate(`/room/${newRoomId}?mode=host`, {
+                    state: {
+                        filePath: moviePath,
+                        roomName,
+                        maxUsers,
+                        sourceType
+                    }
+                });
+            } else {
+                setCreatedRoomId(newRoomId);
+                setLoading(false); // Stop loading to show modal
+            }
 
         } catch (err) {
             setError('System error: ' + err.message);
@@ -125,6 +138,69 @@ const CreateRoom = () => {
 
     return (
         <div className="create-room-container fade-in">
+            {createdRoomId && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.9)', zIndex: 2000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div className="modal-content" style={{
+                        background: '#1a1a1a', padding: '30px', borderRadius: '20px',
+                        textAlign: 'center', border: '1px solid #333', maxWidth: '600px',
+                        maxHeight: '90vh', overflowY: 'auto'
+                    }}>
+                        <h2 style={{ color: '#ff6b6b', marginBottom: '10px' }}>🚀 Room Ready!</h2>
+                        <p style={{ color: '#ccc', marginBottom: '20px' }}>
+                            Your room <strong>{roomName}</strong> is created. Follow these steps to stream:
+                        </p>
+
+                        <div style={{ background: '#111', padding: '20px', borderRadius: '12px', marginBottom: '20px', textAlign: 'left' }}>
+                            <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: '#fff' }}>1. Open Extension</h3>
+                            <p style={{ color: '#888', fontSize: '0.9rem', margin: 0 }}>
+                                Go to the tab you want to share (e.g. Netflix, YouTube) and open the <strong>LetsWatch Side Panel</strong>.
+                            </p>
+                        </div>
+
+                        <div style={{ background: '#111', padding: '20px', borderRadius: '12px', marginBottom: '20px', textAlign: 'left' }}>
+                            <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: '#fff' }}>2. Enter Code</h3>
+                            <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>
+                                Paste this Room ID into the extension:
+                            </p>
+                            <div style={{
+                                display: 'flex', gap: '10px', alignItems: 'center',
+                                background: '#000', padding: '10px', borderRadius: '8px', border: '1px dashed #444'
+                            }}>
+                                <code style={{ flex: 1, fontSize: '1.2rem', color: '#ff8e53', fontFamily: 'monospace' }}>{createdRoomId}</code>
+                                <button onClick={() => {
+                                    navigator.clipboard.writeText(createdRoomId);
+                                    alert("Copied!");
+                                }} style={{
+                                    background: '#333', border: 'none', color: '#fff', padding: '8px 15px',
+                                    borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
+                                }}>Copy</button>
+                            </div>
+                        </div>
+
+                        <details style={{ textAlign: 'left', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px' }}>
+                            <summary style={{ cursor: 'pointer', color: '#aaa', fontWeight: 'bold' }}>⚠️ Extension Not Installed?</summary>
+                            <ol style={{ paddingLeft: '20px', marginTop: '10px', color: '#ccc', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                <li>Go to <code>chrome://extensions</code> in your browser.</li>
+                                <li>Enable <strong>Developer mode</strong> (top right).</li>
+                                <li>Click <strong>Load unpacked</strong>.</li>
+                                <li>Select folder: <code>c:\projects\letswatch\extension</code></li>
+                            </ol>
+                        </details>
+
+                        <button onClick={() => navigate('/dashboard')} style={{
+                            padding: '12px 30px', background: 'linear-gradient(135deg, #ff6b6b, #ff8e53)', border: 'none',
+                            color: '#fff', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem'
+                        }}>
+                            Done & Go to Dashboard
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="back-button-container">
                 <button onClick={handleBack} className="back-button">
                     ← Back
@@ -148,20 +224,52 @@ const CreateRoom = () => {
                         />
                     </div>
 
-                    {/* Movie Selection */}
+                    {/* Source Type Selection */}
                     <div className="form-group">
-                        <label>Movie File <span className="required">*</span></label>
-                        <div className="file-select-area">
-                            <button type="button" onClick={handleSelectFile} className="select-file-button">
-                                {moviePath ? 'Change Video' : 'Select Video File'}
-                            </button>
-                            {moviePath && <div className="selected-path">{moviePath}</div>}
+                        <label>Content Source <span className="required">*</span></label>
+                        <div className="radio-group" style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
+                            <label className="radio-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    value="file"
+                                    checked={sourceType === 'file'}
+                                    onChange={() => setSourceType('file')}
+                                    style={{ marginRight: '8px' }}
+                                />
+                                Local Video File
+                            </label>
+                            <label className="radio-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    value="screen"
+                                    checked={sourceType === 'screen'}
+                                    onChange={() => {
+                                        setSourceType('screen');
+                                        setMovieDuration('Live'); // Default for stream
+                                    }}
+                                    style={{ marginRight: '8px' }}
+                                />
+                                Browser Stream / Screen Share
+                            </label>
                         </div>
                     </div>
 
+                    {/* Movie Selection (Only for File) */}
+                    {sourceType === 'file' && (
+                        <div className="form-group fade-in">
+                            <label>Movie File <span className="required">*</span></label>
+                            <div className="file-select-area">
+                                <button type="button" onClick={handleSelectFile} className="select-file-button">
+                                    {moviePath ? 'Change Video' : 'Select Video File'}
+                                </button>
+                                {moviePath && <div className="selected-path">{moviePath}</div>}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Movie Details */}
                     <div className="form-group">
-                        <label>Movie Name <span className="required">*</span></label>
+                        <label>{sourceType === 'file' ? 'Movie Name' : 'Stream Title'} <span className="required">*</span></label>
                         <input
                             type="text"
                             placeholder="e.g. Inception"
@@ -192,12 +300,11 @@ const CreateRoom = () => {
                         <div className="form-group half">
                             <label>Duration (mins) <span className="required">*</span></label>
                             <input
-                                type="number"
-                                placeholder="e.g. 120"
+                                type="text"
+                                placeholder="e.g. 120 or 'Live'"
                                 value={movieDuration}
                                 onChange={(e) => setMovieDuration(e.target.value)}
                                 required
-                                min="1"
                             />
                         </div>
                     </div>
@@ -286,7 +393,7 @@ const CreateRoom = () => {
                                 onChange={(e) => setResponsibilityConfirmed(e.target.checked)}
                                 required
                             />
-                            I confirm that I have entered the movie name and category correctly and tagged it appropriately.
+                            I confirm that I have entered the {sourceType === 'file' ? 'movie' : 'stream'} name and category correctly and tagged it appropriately.
                         </label>
                     </div>
 
@@ -300,8 +407,8 @@ const CreateRoom = () => {
 
                     {error && <div className="error-message">{error}</div>}
                 </form>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

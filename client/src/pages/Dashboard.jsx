@@ -37,6 +37,7 @@ const Dashboard = () => {
 
         // Navigate with password
         const passwordParam = joinPassword ? `&password=${encodeURIComponent(joinPassword)}` : '';
+
         // Direct navigation to Room ID (Peer ID)
         navigate(`/room/${joinIp}?mode=viewer${passwordParam}`);
 

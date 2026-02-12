@@ -96,7 +96,7 @@ export class GeminiService {
         }
     }
 
-    async sendMessage(history, message, personaData, mode) {
+    async sendMessage(history, myId, personaData, mode) {
         // STATELESS APPROACH to avoid 400 Errors with History Alternation
         // We construct one giant prompt containing the history.
 
@@ -106,12 +106,13 @@ export class GeminiService {
         let conversationLog = "";
         recentHistory.forEach(h => {
             // STRICT SPEAKER LABELS to prevent confusion
-            const senderLabel = h.sender === 'me' ? 'User' : personaData.name;
+            // User is either 'me' (legacy) or the current myId
+            const isUser = h.sender === 'me' || h.sender === myId;
+            const senderLabel = isUser ? 'User' : personaData.name;
             if (h.text) conversationLog += `${senderLabel}: ${h.text.replace(/\n/g, ' ')}\n`;
         });
 
-        // Add current message
-        conversationLog += `User: ${message}\n`;
+        // We do NOT add the current message manually because 'history' already contains it (passed from FriendChat).
         conversationLog += `${personaData.name}:`; // Prompt for completion
 
         const fullPrompt = `

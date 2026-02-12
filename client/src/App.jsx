@@ -7,6 +7,7 @@ import Onboarding from './pages/Onboarding';
 import Intro from './pages/Intro';
 import Profile from './pages/Profile';
 import Room from './pages/Room';
+import ExtensionLanding from './pages/ExtensionLanding';
 
 // Route Guard for Onboarding
 const RootRoute = () => {
@@ -41,6 +42,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/create-room" element={<CreateRoom />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/extension" element={<ExtensionLanding />} />
         <Route path="/room/:roomId" element={<Room />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
