@@ -22,10 +22,22 @@ function createWindow() {
     // In production, load the built index.html
     // In dev, load localhost
     // Checking environment variable or standard pattern
-    if (process.env.ELECTRON_START_URL) {
-        mainWindow.loadURL(process.env.ELECTRON_START_URL);
-    } else {
+    const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:5173';
+
+    // Check if we are in development mode (by checking if the URL is accessible or just by a flag)
+    // A simple heuristic: if ELECTRON_START_URL is set, we try to use it.
+    // However, if the user just cloned and ran 'npm start' without .env, 
+    // process.env.ELECTRON_START_URL might be undefined.
+
+    // We can try to load the local file if the dev server isn't explicitly requested or if we are packaged.
+    if (app.isPackaged) {
         mainWindow.loadFile(path.join(__dirname, '../client/dist/index.html'));
+    } else {
+        mainWindow.loadURL(startUrl).catch(err => {
+            console.log("Failed to load start URL, falling back to build or explaining error:", err);
+            // Optionally load a simple error page or the dist file if exists
+            // mainWindow.loadFile(path.join(__dirname, '../client/dist/index.html'));
+        });
     }
 
     mainWindow.on('closed', function () {
@@ -70,17 +82,26 @@ try { require('dotenv').config(); } catch (e) { }
 const verificationCodes = new Map(); // email -> { code, expires }
 
 // Transporter (Configure this in .env)
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+// Transporter (Configure this in .env)
+let transporter = null;
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: process.env.SMTP_PORT || 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+        }
+    });
+} else {
+    console.warn("SMTP credentials not found in env. Email verification will be disabled.");
+}
 
 ipcMain.handle('send-verification-email', async (event, email) => {
+    if (!transporter) {
+        return { success: false, error: 'Email service is not configured.' };
+    }
     try {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
